@@ -1,0 +1,26 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net8.0</TargetFramework>
+        <RootNamespace>_1brc</RootNamespace>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+		
+        <PublishAot>true</PublishAot>
+        <OptimizationPreference>Speed</OptimizationPreference>
+        <IlcInstructionSet>native</IlcInstructionSet>
+        <PublishReadyToRun>true</PublishReadyToRun>
+		<TieredCompilation>false</TieredCompilation>
+		<IsTrimmable>true</IsTrimmable>
+		<EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+		<EnableAOTAnalyzer>true</EnableAOTAnalyzer>
+
+		<InvariantGlobalization>true</InvariantGlobalization>
+		<MetadataUpdaterSupport>false</MetadataUpdaterSupport>
+		<UseSystemResourceKeys>true</UseSystemResourceKeys>
+		<EventSourceSupport>false</EventSourceSupport>
+    </PropertyGroup>
+
+</Project>
