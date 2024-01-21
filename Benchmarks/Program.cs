@@ -5,6 +5,7 @@ using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Diagnosers;
 using BenchmarkDotNet.Engines;
 using System.Runtime.CompilerServices;
+using static Benchmarks.Parse;
 
 namespace Benchmarks
 {
@@ -16,14 +17,29 @@ namespace Benchmarks
         }
     }
 
-    /*
-    [HardwareCounters(
-    HardwareCounter.InstructionRetired,
-    HardwareCounter.TotalCycles,
-    HardwareCounter.BranchInstructionRetired,
-    HardwareCounter.BranchMispredictsRetired,
-    HardwareCounter.LlcMisses)] */
+
     [IterationCount(5)]
+    [WarmupCount(1)]
+    [EvaluateOverhead(false)]
+    public class MemoryMapChunkSize
+    {
+        private readonly string _filePath = "/root/git/1brc_data/measurements-10K.txt";
+
+        [Params(512_000, 1_000_000, 2_000_000, 5_000_000, 10_000_000)]
+        public int ChunkSize { get; set; }
+
+        [Benchmark]
+        public void ParseAndAccumulate() => Brc.ProcessFile(new MemoryMappedIO(_filePath, ChunkSize));
+    }
+
+        /*
+        [HardwareCounters(
+        HardwareCounter.InstructionRetired,
+        HardwareCounter.TotalCycles,
+        HardwareCounter.BranchInstructionRetired,
+        HardwareCounter.BranchMispredictsRetired,
+        HardwareCounter.LlcMisses)] */
+        [IterationCount(5)]
     [WarmupCount(1)]
     [EvaluateOverhead(false)]
     public class Parse
@@ -50,8 +66,6 @@ namespace Benchmarks
                 _ => throw new InvalidOperationException()
             };
         }
-
-        string GetSourceDir([CallerFilePath] string? dir = null) => dir!;
 
         unsafe public class StrideChunkParser : IChunkParser
         {
