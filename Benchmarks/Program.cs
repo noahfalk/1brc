@@ -25,7 +25,7 @@ namespace Benchmarks
     {
         private readonly string _filePath = "/root/git/1brc_data/measurements-10K.txt";
 
-        [Params(512_000, 1_000_000, 2_000_000, 5_000_000, 10_000_000)]
+        [Params(16_000,32_000,64_000,90_000,128_000)]
         public int ChunkSize { get; set; }
 
         [Benchmark]
