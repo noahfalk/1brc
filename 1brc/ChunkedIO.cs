@@ -1,4 +1,5 @@
 ﻿using Microsoft.Win32.SafeHandles;
+using System;
 using System.Diagnostics;
 using System.IO.MemoryMappedFiles;
 using System.Runtime.InteropServices;
@@ -12,15 +13,24 @@ namespace _1brc
 
     public unsafe class MemoryMappedIO : IChunkedIO
     {
+        class ThreadState
+        {
+            public long ClaimedRegionStart;
+            public int ClaimedRegionLength;
+        }
+
+        const int LongestLegalRow = 100 + 7;
         private readonly int _maxChunkSize;
+        private readonly int _maxRegionClaimSize;
         private readonly byte* _pointer;
         private readonly long _fileLength;
         private readonly MemoryMappedFile _mapping;
         private readonly MemoryMappedViewAccessor _viewAccessor;
+        private readonly ThreadLocal<ThreadState> t_state = new ThreadLocal<ThreadState>();
 
         private long _fileBytesClaimed;
 
-        public MemoryMappedIO(string filePath, int maxChunkSize = 1 << 25)
+        public MemoryMappedIO(string filePath, int maxChunkSize = 1 << 18, int maxRegionClaimSize = 1 << 25)
         {
             using (FileStream fs = File.Open(filePath, FileMode.Open, FileAccess.Read, FileShare.Read))
             {
@@ -30,6 +40,7 @@ namespace _1brc
             _viewAccessor = _mapping.CreateViewAccessor(0, 0, MemoryMappedFileAccess.Read);
             _viewAccessor.SafeMemoryMappedViewHandle.AcquirePointer(ref _pointer);
             _maxChunkSize = maxChunkSize;
+            _maxRegionClaimSize = maxRegionClaimSize;
         }
 
         public void Dispose()
@@ -40,23 +51,57 @@ namespace _1brc
 
         public bool TryGetNextChunk(out IntPtr chunkStart, out int chunkLength)
         {
-            long start;
-            lock (this)
+            if (!t_state.IsValueCreated)
             {
-                if (_fileBytesClaimed == _fileLength)
+                t_state.Value = new ThreadState();
+            }
+
+            ThreadState ts = t_state.Value!;
+            if (ts.ClaimedRegionLength == 0)
+            {
+                if (!TryGetNextRegion(out ts.ClaimedRegionStart, out ts.ClaimedRegionLength))
                 {
                     chunkStart = chunkLength = 0;
                     return false;
                 }
-                start = _fileBytesClaimed;
-                chunkLength = (int)Math.Min(_maxChunkSize, _fileLength - start);
-                for (; *(_pointer + start + chunkLength - 1) != '\n'; chunkLength++) ;
-                _fileBytesClaimed += chunkLength;
             }
-            Debug.Assert(start == 0 || *(_pointer + start - 1) == '\n');
-            Debug.Assert(*(_pointer + start + chunkLength - 1) == '\n');
-            chunkStart = (IntPtr)(_pointer + start);
+
+            
+            Span<byte> regionBuffer = new Span<byte>(_pointer + ts.ClaimedRegionStart, ts.ClaimedRegionLength);
+            Span<byte> chunkBuffer = regionBuffer.Slice(0, Math.Min(_maxChunkSize, regionBuffer.Length));
+            chunkLength = chunkBuffer.LastIndexOf((byte)'\n') + 1;
+            Debug.Assert(ts.ClaimedRegionStart == 0 || *(_pointer + ts.ClaimedRegionStart - 1) == '\n');
+            Debug.Assert(*(_pointer + ts.ClaimedRegionStart + chunkLength - 1) == '\n');
+            chunkStart = (IntPtr)(_pointer + ts.ClaimedRegionStart);
+            ts.ClaimedRegionLength -= chunkLength;
+            ts.ClaimedRegionStart += chunkLength;
             return true;
+        }
+
+        bool TryGetNextRegion(out long regionStart, out int regionLength)
+        {
+            while (true)
+            {
+                long claimed = _fileBytesClaimed;
+                if (_fileBytesClaimed == _fileLength)
+                {
+                    regionStart = regionLength = 0;
+                    return false;
+                }
+                long newClaimLength = _fileLength - claimed;
+                if (newClaimLength > _maxRegionClaimSize)
+                {
+                    long start = claimed;
+                    newClaimLength = _maxRegionClaimSize - LongestLegalRow;
+                    for (; *(_pointer + start + newClaimLength - 1) != '\n'; newClaimLength++) ;
+                }
+                if (Interlocked.CompareExchange(ref _fileBytesClaimed, _fileBytesClaimed + newClaimLength, claimed) == claimed)
+                {
+                    regionStart = claimed;
+                    regionLength = (int)newClaimLength;
+                    return true;
+                }
+            }
         }
     }
 
