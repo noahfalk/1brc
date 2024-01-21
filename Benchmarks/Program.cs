@@ -28,7 +28,7 @@ namespace Benchmarks
     [EvaluateOverhead(false)]
     public class Parse
     {
-        private readonly string _filePath = "../../1brc_data/measurements-10K.txt";
+        private readonly string _filePath = "~/git/1brc_data/measurements-10K.txt";
 
         [Params("RandomAccess", "MemoryMapped")]
         public string? IOStrategy { get; set; }
@@ -43,7 +43,6 @@ namespace Benchmarks
 
         IChunkedIO GetChunkedIO()
         {
-            string path = Path.Combine(GetSourceDir(), _filePath);
             return IOStrategy switch
             {
                 "RandomAccess" => new RandomAccessIO(_filePath),
