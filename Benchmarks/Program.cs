@@ -28,7 +28,7 @@ namespace Benchmarks
     [EvaluateOverhead(false)]
     public class Parse
     {
-        private readonly string _filePath = "~/git/1brc_data/measurements-10K.txt";
+        private readonly string _filePath = "/root/git/1brc_data/measurements-10K.txt";
 
         [Params("RandomAccess", "MemoryMapped")]
         public string? IOStrategy { get; set; }
