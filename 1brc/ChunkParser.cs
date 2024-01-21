@@ -30,7 +30,13 @@ namespace _1brc
     public unsafe class PickStrategyChunkParser : IChunkParser
     {
         SmallNameMultilineChunkParser _smallDataSetParser = new SmallNameMultilineChunkParser();
-        LargeNameMultilineChunkParser _largeDataSetParser = new LargeNameMultilineChunkParser();
+        LargeNameMultilineChunkParser _largeDataSetParser;
+
+        public PickStrategyChunkParser(int prefetchLookAhead = 0)
+        {
+            _smallDataSetParser = new SmallNameMultilineChunkParser();
+            _largeDataSetParser = new LargeNameMultilineChunkParser(prefetchLookAhead);
+        }
 
         public IStationDictionary CreateDictionary() => new SparseDictionary();
 
@@ -243,6 +249,12 @@ namespace _1brc
     {
         const int LongestLegalRow = 100 + 7;
         ChunkParser<CompactDictionary> _fallbackParser = new ChunkParser<CompactDictionary>();
+        int _prefetchLookupAhead;
+
+        public LargeNameMultilineChunkParser(int prefetchLookAhead = 0)
+        {
+            _prefetchLookupAhead = prefetchLookAhead;
+        }
 
         public IStationDictionary CreateDictionary() => new CompactDictionary();
 
@@ -284,6 +296,18 @@ namespace _1brc
                 var semiIndex3B = data3B.IndexOf(semicolonVector);
                 var data4B = Vector256.Load(cursor4B);
                 var semiIndex4B = data4B.IndexOf(semicolonVector);
+
+                if(_prefetchLookupAhead != 0)
+                {
+                    Avx.Prefetch0(cursor1 + _prefetchLookupAhead);
+                    Avx.Prefetch0(cursor2 + _prefetchLookupAhead);
+                    Avx.Prefetch0(cursor3 + _prefetchLookupAhead);
+                    Avx.Prefetch0(cursor4 + _prefetchLookupAhead);
+                    Avx.Prefetch0(cursor1B + _prefetchLookupAhead);
+                    Avx.Prefetch0(cursor2B + _prefetchLookupAhead);
+                    Avx.Prefetch0(cursor3B + _prefetchLookupAhead);
+                    Avx.Prefetch0(cursor4B + _prefetchLookupAhead);
+                }
 
                 Vector256<byte> name1 = data.MaskLeftBytes(semiIndex1);
                 Vector256<byte> name2 = data2.MaskLeftBytes(semiIndex2);

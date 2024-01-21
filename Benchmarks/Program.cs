@@ -13,10 +13,25 @@ namespace Benchmarks
     {
         static void Main(string[] args)
         {
-            var summary = BenchmarkRunner.Run<MemoryMapChunkSize>();
+            var summary = BenchmarkRunner.Run<MemoryMapPrefetchLookAhead>();
         }
     }
 
+
+    [IterationCount(5)]
+    [WarmupCount(1)]
+    [EvaluateOverhead(false)]
+    public class MemoryMapPrefetchLookAhead
+    {
+        private readonly string _filePath = "/root/git/1brc_data/measurements-10K.txt";
+
+        [Params(0, 1, 2, 3, 4, 5, 6)]
+        public int LinesAhead { get; set; }
+
+        [Benchmark]
+        public void ParseAndAccumulate() => Brc.ParseFile(Environment.ProcessorCount, new MemoryMappedIO(_filePath),
+            new PickStrategyChunkParser(LinesAhead*64));
+    }
 
     [IterationCount(5)]
     [WarmupCount(1)]
