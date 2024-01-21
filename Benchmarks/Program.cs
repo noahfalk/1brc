@@ -4,6 +4,7 @@ using _1brc;
 using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Diagnosers;
 using BenchmarkDotNet.Engines;
+using System.Runtime.CompilerServices;
 
 namespace Benchmarks
 {
@@ -15,12 +16,13 @@ namespace Benchmarks
         }
     }
 
+    /*
     [HardwareCounters(
     HardwareCounter.InstructionRetired,
     HardwareCounter.TotalCycles,
     HardwareCounter.BranchInstructionRetired,
     HardwareCounter.BranchMispredictsRetired,
-    HardwareCounter.LlcMisses)]
+    HardwareCounter.LlcMisses)] */
     [IterationCount(5)]
     [WarmupCount(1)]
     [EvaluateOverhead(false)]
@@ -39,13 +41,18 @@ namespace Benchmarks
             Brc.ParseFile(Environment.ProcessorCount, GetChunkedIO(), new StrideChunkParser());
 
 
-        IChunkedIO GetChunkedIO() =>
-            IOStrategy switch
+        IChunkedIO GetChunkedIO()
+        {
+            string path = Path.Combine(GetSourceDir(), _filePath);
+            return IOStrategy switch
             {
                 "RandomAccess" => new RandomAccessIO(_filePath),
                 "MemoryMapped" => new MemoryMappedIO(_filePath),
                 _ => throw new InvalidOperationException()
             };
+        }
+
+        string GetSourceDir([CallerFilePath] string? dir = null) => dir!;
 
         unsafe public class StrideChunkParser : IChunkParser
         {
