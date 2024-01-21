@@ -13,7 +13,7 @@ namespace Benchmarks
     {
         static void Main(string[] args)
         {
-            var summary = BenchmarkRunner.Run<Parse>();
+            var summary = BenchmarkRunner.Run<MemoryMapChunkSize>();
         }
     }
 
