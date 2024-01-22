@@ -249,7 +249,7 @@ namespace _1brc
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int GetHashCode(long nameBytes)
         {
-            return (int)((nameBytes * 0x353a6569c53a6569) >> 32);
+            return (int)((nameBytes * 0x353a6569c53a6569) >> 23);
         }
     }
 }

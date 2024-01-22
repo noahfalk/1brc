@@ -102,7 +102,7 @@ public static unsafe class Brc
 
     public static string ProcessFile(string filePath, int? threadCount = null, IOStrategy? ioOverride = null)
     {
-        IOStrategy stategy = OperatingSystem.IsWindows() ? IOStrategy.RandomAccess : IOStrategy.MemoryMapped;
+        IOStrategy stategy = IOStrategy.RandomAccess;
         stategy = ioOverride ?? stategy;
         using var chunkedIO = stategy switch
         {
