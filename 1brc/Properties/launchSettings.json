@@ -2,7 +2,7 @@
   "profiles": {
     "1brc": {
       "commandName": "Project",
-      "commandLineArgs": "C:\\git\\1brc_data\\measurements-10K.txt --timings",
+      "commandLineArgs": "C:\\git\\1brc_data\\measurements-10K.txt --timings --quiet",
     }
   }
 }

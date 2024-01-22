@@ -129,6 +129,7 @@ public static unsafe class Brc
     public static string ProcessFile(int threadCount, IChunkedIO chunkedIO, IChunkParser chunkParser)
     {
         Dictionary<string, Stats> dict = ParseFile(threadCount, chunkedIO, chunkParser);
+        DumpNameStats(dict);
         return FormatResults(dict);
     }
 
@@ -142,6 +143,47 @@ public static unsafe class Brc
         output.Append(string.Join(", ", stations));
         output.Append("}\n");
         return output.ToString();
+    }
+
+    public static void DumpNameStats(Dictionary<string,Stats> results)
+    {
+        IEnumerable<string> names = results.Select(kv => kv.Key).ToArray();
+        var nameLengthGroups = names.GroupBy(n => n.Length).OrderByDescending(ng => ng.Key);
+        int[] namesLessThan = new int[100];
+        foreach(var ng in nameLengthGroups)
+        {
+            for(int i = 0; i < 100; i++)
+            {
+                if(ng.Key <= i)
+                {
+                    namesLessThan[i] += ng.Count();
+                }
+            }
+        }
+        Console.WriteLine("Names Less than X chars");
+        for(int i = 0; i < 100; i++)
+        {
+            Console.WriteLine($"{i}: {namesLessThan[i]}");
+        }
+        Console.WriteLine();
+
+
+        var nameGroups = names.GroupBy(name => GetNameHashBucket(name)).OrderByDescending(g => g.Count());
+        Console.WriteLine("Hash count: " + nameGroups.Count());
+        var hashGroups = nameGroups.GroupBy(ng => ng.Count()).OrderByDescending(ng => ng.Key);
+        Console.WriteLine("Collision count - # hashes");
+        foreach (var g in hashGroups)
+        {
+            Console.WriteLine($"{g.Key}: {g.Count()}");
+        }
+    }
+
+    private static int GetNameHashBucket(string name)
+    {
+        byte[] bytes = new byte[100];
+        Encoding.UTF8.GetBytes(name, bytes.AsSpan());
+        long nameBytes = Unsafe.As<byte, long>(ref bytes[0]);
+        return (int)((nameBytes * 0x353a6569c53a6569) >> 23) & ((1 << 15)-1);
     }
 
     public static Dictionary<string, Stats> ParseFile(int threadCount, IChunkedIO chunkedIO, IChunkParser chunkParser)

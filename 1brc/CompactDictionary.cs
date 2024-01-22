@@ -17,7 +17,7 @@ namespace _1brc
 
     public unsafe sealed class CompactDictionary : IStationDictionary
     {
-        const int Size = 1 << 14;
+        const int Size = 1 << 16;
         uint* _buckets;
         byte* _entries;
         uint _nextEntryOffset;
@@ -249,7 +249,7 @@ namespace _1brc
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int GetHashCode(long nameBytes)
         {
-            return (int)((nameBytes * 0x353a6569c53a6569) >> 32);
+            return (int)((nameBytes * 0x353a6569c53a6569) >> 23);
         }
     }
 }

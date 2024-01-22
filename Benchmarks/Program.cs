@@ -6,6 +6,9 @@ using BenchmarkDotNet.Diagnosers;
 using BenchmarkDotNet.Engines;
 using System.Runtime.CompilerServices;
 using static Benchmarks.Parse;
+using System.Runtime.Intrinsics;
+using System.Text;
+using System.Diagnostics;
 
 namespace Benchmarks
 {
@@ -13,7 +16,7 @@ namespace Benchmarks
     {
         static void Main(string[] args)
         {
-            var summary = BenchmarkRunner.Run<MemoryMapPrefetchLookAhead>();
+            var summary = BenchmarkRunner.Run<IndexLookupThroughput>(new DebugInProcessConfig());
         }
     }
 
@@ -47,14 +50,143 @@ namespace Benchmarks
         public void ParseAndAccumulate() => Brc.ProcessFile(new MemoryMappedIO(_filePath, ChunkSize));
     }
 
-        /*
-        [HardwareCounters(
-        HardwareCounter.InstructionRetired,
-        HardwareCounter.TotalCycles,
-        HardwareCounter.BranchInstructionRetired,
-        HardwareCounter.BranchMispredictsRetired,
-        HardwareCounter.LlcMisses)] */
-        [IterationCount(5)]
+    /*
+    [HardwareCounters(
+HardwareCounter.InstructionRetired,
+HardwareCounter.TotalCycles,
+HardwareCounter.BranchInstructionRetired,
+HardwareCounter.BranchMispredictsRetired,
+HardwareCounter.LlcMisses)] */
+    [IterationCount(5)]
+    [WarmupCount(1)]
+    [EvaluateOverhead(false)]
+    public class IndexLookupThroughput
+    {
+        public UtfName32[] GetNames(int nameCount)
+        {
+            UtfName32[] names = new UtfName32[nameCount];
+            for (int i = 0; i < names.Length; i++)
+            {
+                byte[] nameBytes = new byte[32];
+                for (int j = 0; j < 27; j++) { nameBytes[j] = (byte)('a'+j); }
+                Encoding.UTF8.GetBytes(i.ToString(), nameBytes.AsSpan());
+                names[i].NameBytes = Vector256.Create<byte>(nameBytes);
+                names[i].Length = 27;
+            }
+
+            UtfName32[] bigNames = new UtfName32[10_000];
+            for (int i = 0; i < bigNames.Length; i++)
+            {
+                bigNames[i] = names[i % nameCount];
+            }
+            return bigNames;
+        }
+
+        public IEnumerable<object[]> GetNameSets()
+        {
+            //yield return new object[] { GetNames(1), 1 };
+            //yield return new object[] { GetNames(10), 10 };
+            yield return new object[] { GetNames(100), 100 };
+            yield return new object[] { GetNames(1000), 1000 };
+            yield return new object[] { GetNames(10_000), 10_000 };
+        }
+
+        [Benchmark]
+        [ArgumentsSource(nameof(GetNameSets))]
+        public unsafe void LookupNames1M(UtfName32[] names, int nameCount)
+        {
+            Index32 d = new Index32();
+            for (int j = 0; j < 100; j++)
+            {
+                if(d.NeedsRehash)
+                {
+                    d.Rehash();
+                }
+                for (int i = 0; i < names.Length; i++)
+                {
+                    int index = d.GetOrCreate(names[i]);
+                    Debug.Assert(index == i % nameCount);
+                }
+            }
+        }
+
+        [Benchmark]
+        [ArgumentsSource(nameof(GetNameSets))]
+        public unsafe void CompactDictionaryLookup1M(UtfName32[] names, int nameCount)
+        {
+            CompactDictionary d = new CompactDictionary();
+            for (int j = 0; j < 100; j++)
+            {
+                for (int i = 0; i < names.Length; i++)
+                {
+                    Stats* s = d.GetOrCreate(names[i].NameBytes, 27);
+                }
+            }
+        }
+    }
+
+    [HardwareCounters(
+    HardwareCounter.InstructionRetired,
+    HardwareCounter.TotalCycles,
+    HardwareCounter.BranchInstructionRetired,
+    HardwareCounter.BranchMispredictsRetired,
+    HardwareCounter.LlcMisses)]
+    [IterationCount(5)]
+    [WarmupCount(1)]
+    [EvaluateOverhead(false)]
+    public class DictionaryLookupThroughput
+    {
+        public Vector256<byte>[] GetNames(int nameCount)
+        {
+            Vector256<byte>[] names = new Vector256<byte>[nameCount];
+            for(int i = 0; i < names.Length; i++)
+            {
+                byte[] nameBytes = new byte[32];
+                for(int j = 0; j < 31; j++) { nameBytes[j] = (byte)'x'; }
+                Encoding.UTF8.GetBytes(i.ToString(), nameBytes.AsSpan());
+                names[i] = Vector256.Create<byte>(nameBytes);
+            }
+
+            Vector256<byte>[] bigNames = new Vector256<byte>[10_000];
+            for(int i = 0;i < bigNames.Length; i++)
+            {
+                bigNames[i] = names[i % nameCount];
+            }
+            return bigNames;
+        }
+
+        public IEnumerable<object[]> GetNameSets()
+        {
+            yield return new object[] { GetNames(1), 1 };
+            yield return new object[] { GetNames(10), 10 };
+            yield return new object[] { GetNames(100), 100 };
+            yield return new object[] { GetNames(1000), 1000 };
+            yield return new object[] { GetNames(10_000), 10_000 };
+        }
+
+        [Benchmark]
+        [ArgumentsSource(nameof(GetNameSets))]
+        public unsafe void LookupNames1M(Vector256<byte>[] names, int nameCount)
+        {
+            CompactDictionary d = new CompactDictionary();
+            for (int j = 0; j < 100; j++)
+            {
+                for (int i = 0; i < names.Length; i++)
+                {
+                    Stats* s = d.GetOrCreate(names[i], 31);
+                }
+            }
+        }
+    }
+
+    /*
+    [HardwareCounters(
+    HardwareCounter.InstructionRetired,
+    HardwareCounter.TotalCycles,
+    HardwareCounter.BranchInstructionRetired,
+    HardwareCounter.BranchMispredictsRetired,
+    HardwareCounter.LlcMisses)] */
+    [IterationCount(5)]
     [WarmupCount(1)]
     [EvaluateOverhead(false)]
     public class Parse
