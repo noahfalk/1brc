@@ -18,6 +18,7 @@ public static unsafe class Brc
 {
     public static void Main(string[] args)
     {
+        s_stopwatch = Stopwatch.StartNew();
         CommandLineArgs parsedArgs = CommandLineArgs.Parse(args);
         if(parsedArgs.FilePath == null)
         {
@@ -29,16 +30,49 @@ public static unsafe class Brc
             return;
         }
 
-        var sw = Stopwatch.StartNew();
         string resultText = ProcessFile(parsedArgs.FilePath, parsedArgs.Threads, parsedArgs.IOStrategy);
-        sw.Stop();
         if(!parsedArgs.QuietMode)
         {
             Console.WriteLine(resultText);
+            RecordTime(TimingName.ResultsPrinted);
         }
         if(parsedArgs.ShowTimings)
         {
-            Console.WriteLine($"Processed in {sw.Elapsed}");
+            PrintTimings();
+        }
+    }
+
+    public enum TimingName
+    {
+        GlobalIOOpening,
+        GlobalIOOpened,
+        FirstWorkerThreadStart,
+        LastWorkerThreadStart,
+        FirstWorkerThreadComplete,
+        LastWorkerThreadComplete,
+        ResultsMerged,
+        ResultsFormatted,
+        GlobalIOClosed,
+        ResultsPrinted,
+        Count
+    }
+
+    static long[] s_timings = new long[(int)TimingName.Count];
+    static Stopwatch s_stopwatch;
+
+    public static void RecordTime(TimingName timingName)
+    {
+        Interlocked.CompareExchange(ref s_timings[(int)timingName], s_stopwatch.ElapsedTicks, 0);
+    }
+
+    public static void PrintTimings()
+    {
+        Console.WriteLine($"{"Timing",-30} {"Total ms",8:N1} {"Diff ms",8:N1}");
+        for (int i = 0; i < s_timings.Length; i++)
+        {
+            double totalMs = new TimeSpan(s_timings[i]).TotalMilliseconds;
+            double diffMs = totalMs - (i == 0 ? 0 : new TimeSpan(s_timings[i - 1]).TotalMilliseconds);
+            Console.WriteLine($"{(TimingName)i,-30} {totalMs,8:N1} {diffMs,8:N1}");
         }
     }
 
@@ -104,13 +138,18 @@ public static unsafe class Brc
     {
         IOStrategy stategy = IOStrategy.RandomAccess;
         stategy = ioOverride ?? stategy;
-        using var chunkedIO = stategy switch
+        RecordTime(TimingName.GlobalIOOpening);
+        var chunkedIO = stategy switch
         {
             IOStrategy.RandomAccess => (IChunkedIO) new RandomAccessIO(filePath),
             _                       => (IChunkedIO) new MemoryMappedIO(filePath)
         };
+        RecordTime(TimingName.GlobalIOOpened);
             
-        return ProcessFile(chunkedIO, threadCount);
+        string resultText = ProcessFile(chunkedIO, threadCount);
+        chunkedIO.Dispose();
+        RecordTime(TimingName.GlobalIOClosed);
+        return resultText;
     }
 
     public static string ProcessFile(IChunkedIO chunkedIO, int? threadCount = null)
@@ -129,7 +168,9 @@ public static unsafe class Brc
     public static string ProcessFile(int threadCount, IChunkedIO chunkedIO, IChunkParser chunkParser)
     {
         Dictionary<string, Stats> dict = ParseFile(threadCount, chunkedIO, chunkParser);
-        return FormatResults(dict);
+        string formattedResults = FormatResults(dict);
+        RecordTime(TimingName.ResultsFormatted);
+        return formattedResults;
     }
 
     public static string FormatResults(Dictionary<string, Stats> results)
@@ -149,7 +190,7 @@ public static unsafe class Brc
         Task<IStationDictionary>[] workers = new Task<IStationDictionary>[threadCount];
         for (int i = 0; i < workers.Length; i++)
         {
-            workers[i] = Task.Run(() => ParseFileChunksWorker(chunkedIO, chunkParser));
+            workers[i] = Task.Run(() => ParseFileChunksWorker(chunkedIO, chunkParser, threadCount));
         }
 
         // merge results back into a single dictionary
@@ -166,19 +207,45 @@ public static unsafe class Brc
                 stats.Merge(kvp.Value);
             }
         }
+        RecordTime(TimingName.ResultsMerged);
         return finalStats;
     }
 
-    static unsafe IStationDictionary ParseFileChunksWorker(IChunkedIO chunkedIO, IChunkParser chunkParser)
+    static int s_workersStarted = 0;
+    static int s_workersCompleted = 0;
+
+    static unsafe IStationDictionary ParseFileChunksWorker(IChunkedIO chunkedIO, IChunkParser chunkParser, int workerCount)
     {
         if(!Debugger.IsAttached)
         {
             Thread.CurrentThread.Priority = ThreadPriority.Highest;
         }
+        int workersStarted = Interlocked.Increment(ref s_workersStarted);
+        if(workersStarted == 1)
+        {
+            RecordTime(TimingName.FirstWorkerThreadStart);
+        }
+        else if(workersStarted == workerCount)
+        {
+            RecordTime(TimingName.LastWorkerThreadStart);
+        }
+        
+
         IStationDictionary dict = chunkParser.CreateDictionary();
         while (chunkedIO.TryGetNextChunk(out IntPtr chunkStart, out int chunkLength))
         {
             chunkParser.Parse(ref dict, chunkStart, chunkLength);
+        }
+
+
+        int workersComplete = Interlocked.Increment(ref s_workersCompleted);
+        if (workersComplete == 1)
+        {
+            RecordTime(TimingName.FirstWorkerThreadComplete);
+        }
+        else if (workersComplete == workerCount)
+        {
+            RecordTime(TimingName.LastWorkerThreadComplete);
         }
         return dict;
     }
