@@ -18,12 +18,12 @@ unofficial implementations that I was aware of to establish some frame of refere
 
 ## Is it really that fast?
 
-```
-Update 1/22:
+
+**Update 1/22**:
 @buybackoff kindly added this entry to his [cross-language 1BRC results](https://hotforknowledge.com/2024/01/13/1brc-in-dotnet-among-fastest-on-linux-my-optimization-journey/#results) so now I feel better that others were able to reproduce it. Unlike my data he
 actually keeps his up-to-date :) At the moment on his machine @lehuyduc's updated entry is the leader on the 10-K variation and this one is the leader on the default data.
 A little more benchmarking on some of the top Java entries suggests my CCX33 instance posted times 5-10% better than the same entries on Gunnar's machine. @lehuyduc also pointed out that Gunnar moved to using the Hexner AX161 instead and that the input data generators aren't deterministic so it remains challenging to compare results across different benchmarking environments with a good amount of fudge factor.
-```
+**End Updates**
 
 At the moment the top entries on [Gunnar's official leaderboard](https://github.com/gunnarmorling/1brc/tree/main?tab=readme-ov-file#results) are clocking in around ~2.5s for the default data on similar hardware so this approach is either a substantial improvement or something fishy is going on. I'm hoping at least a few other folks will run this solution and sanity check that this is a reproducible result before I put too much credence in it. As far as I know this solution is not using any [Yolo Optimizations](https://hotforknowledge.com/2024/01/13/1brc-in-dotnet-among-fastest-on-linux-my-optimization-journey/). It may not be performant on pathological input but it is intended to be always correct.
 
