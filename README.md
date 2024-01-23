@@ -3,19 +3,27 @@
 I've been having a blast poking around at [1BRC](https://github.com/gunnarmorling/1brc), thanks [Gunnar Morling](https://www.morling.dev/blog/one-billion-row-challenge/)! I couldn't help but go down the rabbit hole :)
 
 I appreciate all the other participants who shared their solutions. Many of the optimizations here were inspired by what others discovered
-and then I pushed it a little farther. For the moment on Jan 21 2024 this might be the fastest known implementation but I hope this is a useful stepping stone for others on the way to even higher perf.
+and then I pushed it a little farther. For the moment on Jan 21 2024 this might be the fastest known implementation on the Hexner CCX33 hardware but I hope this is a useful stepping stone for others on the way to even higher perf.
 
 In order to do benchmarking I grabbed access to the Hexner CCX33 (8 cores) hoping to get some numbers that are comparable to the official Java leaderboard 
-that Gunnar is running. Gunnar is far more diligent than I am however so I just ran a few benchmarks against some of the really speedy
-implementations that I was aware of to establish some frame of reference.
+that Gunnar is running. Gunnar is far more diligent than I am however so I just ran a few benchmarks against some of the other really speedy
+unofficial implementations that I was aware of to establish some frame of reference.
 
 | Implementation                                     |   Default data             | 10-K variation    |
 | :--------------------------------------------------| :------------------------- | :---------------- |
 | This Repo                                          |  1.381                     |  3.739            |
 | [lehuyduc](https://github.com/lehuyduc/1brc-simd)  |  1.897                     |  3.858            |
+| [buybackoff](https://github.com/buybackoff/1brc) (Added 1/22)  |  2.356                     |  4.751            |
 | [nietras](https://github.com/nietras/1brc.cs)      |  2.971                     |  4.564            |
 
 ## Is it really that fast?
+
+```
+Update 1/22:
+@buybackoff kindly added this entry to his [cross-language 1BRC results](https://hotforknowledge.com/2024/01/13/1brc-in-dotnet-among-fastest-on-linux-my-optimization-journey/#results) so now I feel better that others were able to reproduce it. Unlike my data he
+actually keeps his up-to-date :) At the moment on his machine @lehuyduc's updated entry is the leader on the 10-K variation and this one is the leader on the default data.
+A little more benchmarking on some of the top Java entries suggests my CCX33 instance posted times 5-10% better than the same entries on Gunnar's machine. @lehuyduc also pointed out that Gunnar moved to using the Hexner AX161 instead and that the input data generators aren't deterministic so it remains challenging to compare results across different benchmarking environments with a good amount of fudge factor.
+```
 
 At the moment the top entries on [Gunnar's official leaderboard](https://github.com/gunnarmorling/1brc/tree/main?tab=readme-ov-file#results) are clocking in around ~2.5s for the default data on similar hardware so this approach is either a substantial improvement or something fishy is going on. I'm hoping at least a few other folks will run this solution and sanity check that this is a reproducible result before I put too much credence in it. As far as I know this solution is not using any [Yolo Optimizations](https://hotforknowledge.com/2024/01/13/1brc-in-dotnet-among-fastest-on-linux-my-optimization-journey/). It may not be performant on pathological input but it is intended to be always correct.
 
