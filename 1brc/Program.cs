@@ -18,7 +18,6 @@ public static unsafe class Brc
 {
     public static void Main(string[] args)
     {
-        s_stopwatch = Stopwatch.StartNew();
         CommandLineArgs parsedArgs = CommandLineArgs.Parse(args);
         if(parsedArgs.FilePath == null)
         {
@@ -34,9 +33,9 @@ public static unsafe class Brc
         if(!parsedArgs.QuietMode)
         {
             Console.WriteLine(resultText);
-            RecordTime(TimingName.ResultsPrinted);
         }
-        if(parsedArgs.ShowTimings)
+        RecordTime(TimingName.ResultsPrinted);
+        if (parsedArgs.ShowTimings)
         {
             PrintTimings();
         }
@@ -58,7 +57,7 @@ public static unsafe class Brc
     }
 
     static long[] s_timings = new long[(int)TimingName.Count];
-    static Stopwatch s_stopwatch;
+    static Stopwatch s_stopwatch = Stopwatch.StartNew();
 
     public static void RecordTime(TimingName timingName)
     {
@@ -225,7 +224,7 @@ public static unsafe class Brc
         {
             RecordTime(TimingName.FirstWorkerThreadStart);
         }
-        else if(workersStarted == workerCount)
+        if(workersStarted == workerCount)
         {
             RecordTime(TimingName.LastWorkerThreadStart);
         }
@@ -243,7 +242,7 @@ public static unsafe class Brc
         {
             RecordTime(TimingName.FirstWorkerThreadComplete);
         }
-        else if (workersComplete == workerCount)
+        if (workersComplete == workerCount)
         {
             RecordTime(TimingName.LastWorkerThreadComplete);
         }

@@ -170,40 +170,6 @@ namespace _1brc
             return &newEntry->Value;
         }
 
-        public Stats* GetOrCreate(ReadOnlySpan<byte> name)
-        {
-            if (name.Length < 32)
-            {
-                return GetOrCreate(SpanToVector(name), name.Length);
-            }
-            else
-            {
-                Debug.Assert(name.Length <= 100);
-                return GetOrCreate(SpanToVector(name),
-                                   name.Length > 32 ? SpanToVector(name.Slice(32)) : Vector256<byte>.Zero,
-                                   name.Length > 64 ? SpanToVector(name.Slice(64)) : Vector256<byte>.Zero,
-                                   name.Length > 96 ? SpanToInt(name.Slice(96)) : 0,
-                                   name.Length);
-            }
-        }
-
-        static Vector256<byte> SpanToVector(ReadOnlySpan<byte> span)
-        {
-            Vector256<byte> v = new Vector256<byte>();
-            ref byte vBytes = ref Unsafe.As<Vector256<byte>, byte>(ref v);
-            Span<byte> vSpan = MemoryMarshal.CreateSpan(ref vBytes, 32);
-            span.Slice(0, Math.Min(32, span.Length)).CopyTo(vSpan);
-            return v;
-        }
-        static int SpanToInt(ReadOnlySpan<byte> span)
-        {
-            int v = 0;
-            ref byte vBytes = ref Unsafe.As<int, byte>(ref v);
-            Span<byte> vSpan = MemoryMarshal.CreateSpan(ref vBytes, 4);
-            span.Slice(0, Math.Min(4, span.Length)).CopyTo(vSpan);
-            return v;
-        }
-
         bool IsMatch(EntryHeader* entry, Vector256<byte> name, int len)
         {
             Vector256<byte> entryName = Vector256.Load((byte*)entry + Unsafe.SizeOf<EntryHeader>());
