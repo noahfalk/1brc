@@ -63,7 +63,7 @@ This code has a dedicated loop that handles data where all the station names are
 
 ### Different custom dictionaries
 
-Not only are the loops different, it also gives us an oportunity to switch between two different custom dictionary implementations. The default data gives us a small number of short names so size of the dictionary isn't large and we can get away with very space inefficient hashtable choices to maximize lookup performance. The 10K challenge on the other hand is completely different - this one depends heavily on cache locality. When I first ran it with the SparseDictionary my times were abysmal and I got around a 6x speedup making a new custom dictionary that was more memory efficient. I think continued improvement on the dictionary memory consumption is a substantial opportunity in the 10K challenge, I didn't spend that much time on it relative to default data challenge.
+Not only are the loops different, it also gives us an opportunity to switch between two different custom dictionary implementations. The default data gives us a small number of short names so size of the dictionary isn't large and we can get away with very space inefficient hashtable choices to maximize lookup performance. The 10K challenge on the other hand is completely different - this one depends heavily on cache locality. When I first ran it with the SparseDictionary my times were abysmal and I got around a 6x speedup making a new custom dictionary that was more memory efficient. I think continued improvement on the dictionary memory consumption is a substantial opportunity in the 10K challenge, I didn't spend that much time on it relative to default data challenge.
 
 ### Prefetching
 
